@@ -6,7 +6,7 @@
 AppId={{8911893D-C4EF-4FB4-B86D-BC72983F430E}
 AppName=Local DPI
 #ifndef AppVersion
-  #define AppVersion "1.4.0"
+  #define AppVersion "1.4.1"
 #endif
 AppVersion={#AppVersion}
 SetupIconFile=LocalDpi.ico
@@ -28,6 +28,9 @@ SetupLogging=yes
 Name: "ru"; MessagesFile: "compiler:Languages\Russian.isl"
 Name: "en"; MessagesFile: "compiler:Default.isl"
 
+[Tasks]
+Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: checkedonce
+
 [Files]
 Source: "{#AppExe}"; DestDir: "{app}"; Flags: ignoreversion
 Source: "README.md"; DestDir: "{app}"; Flags: ignoreversion
@@ -36,6 +39,7 @@ Source: "LICENSE"; DestDir: "{app}"; Flags: ignoreversion
 [Icons]
 Name: "{group}\Local DPI"; Filename: "{app}\LocalDpi.exe"
 Name: "{group}\{cm:UninstallProgram,Local DPI}"; Filename: "{uninstallexe}"
+Name: "{userdesktop}\Local DPI"; Filename: "{app}\LocalDpi.exe"; WorkingDir: "{app}"; Tasks: desktopicon
 
 [Run]
 Filename: "{app}\LocalDpi.exe"; Description: "{cm:LaunchProgram,Local DPI}"; Flags: nowait postinstall skipifsilent
