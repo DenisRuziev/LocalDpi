@@ -1,0 +1,40 @@
+name: Windows release
+on:
+  push:
+    tags: ['v*']
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Publish application and compile setup
+        shell: pwsh
+        run: |
+          $version = $env:GITHUB_REF_NAME.TrimStart('v')
+          if ($version -notmatch '^\d+\.\d+\.\d+$') { throw 'Expected vMAJOR.MINOR.PATCH tag' }
+          dotnet publish LocalDpi.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true "-p:Version=$version" "-p:UpdateRepository=$env:GITHUB_REPOSITORY" -o "$env:RUNNER_TEMP/published"
+          if ($LASTEXITCODE) { throw 'Publish failed' }
+          $download = Join-Path $env:RUNNER_TEMP 'inno.exe'
+          Invoke-WebRequest 'https://github.com/jrsoftware/issrc/releases/download/is-6_7_4/innosetup-6.7.4.exe' -OutFile $download
+          if ((Get-FileHash $download).Hash -ne 'A549929319F9120716677C685535CA4671E4B937B5FDC87E2585F32D8EB30E8C') { throw 'Compiler checksum mismatch' }
+          $compiler = Join-Path $env:RUNNER_TEMP 'inno'
+          $setup = Start-Process $download -ArgumentList "/CURRENTUSER /VERYSILENT /NORESTART /DIR=""$compiler""" -Wait -PassThru
+          if ($setup.ExitCode) { throw 'Compiler installation failed' }
+          $app = Join-Path $env:RUNNER_TEMP 'published/LocalDpi.exe'
+          $out = Join-Path $env:RUNNER_TEMP 'release'
+          & (Join-Path $compiler 'ISCC.exe') "/DAppExe=$app" "/DAppVersion=$version" "/O$out" Setup.iss
+          if ($LASTEXITCODE) { throw 'Installer compile failed' }
+          $asset = Join-Path $out 'LocalDpi-Setup.exe'
+          "$((Get-FileHash $asset).Hash.ToLowerInvariant())  LocalDpi-Setup.exe" | Set-Content (Join-Path $out 'SHA256SUMS.txt') -Encoding ascii
+      - name: Publish release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create $env:GITHUB_REF_NAME "$env:RUNNER_TEMP/release/LocalDpi-Setup.exe" "$env:RUNNER_TEMP/release/SHA256SUMS.txt" --verify-tag --generate-notes
+          if ($LASTEXITCODE) { throw 'GitHub release failed' }

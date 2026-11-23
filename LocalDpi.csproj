@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <PlatformTarget>x64</PlatformTarget>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>LocalDpi.ico</ApplicationIcon>
+  </PropertyGroup>
+  <ItemGroup>
+    <AssemblyMetadata Include="UpdateRepository" Value="$(UpdateRepository)" Condition="'$(UpdateRepository)' != ''" />
+    <FrameworkReference Include="Microsoft.WindowsDesktop.App.WindowsForms"/>
+    <EmbeddedResource Include="engine.sha256" />
+    <Resource Include="LocalDpi.ico" />
+  </ItemGroup>
+</Project>
