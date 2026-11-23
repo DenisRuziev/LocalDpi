@@ -17,6 +17,7 @@ internal sealed record Profile(string Name, string Function, string Split, Profi
 internal sealed class Engine(string directory) : IDisposable
 {
     internal const string Combo = "combo";
+    private const string DiscordVoicePorts = "19294-19344,50000-65535";
     private const string Release = "https://github.com/bol-van/zapret2/releases/download/v1.0.7/zapret2-v1.0.7.zip";
     private const string Digest = "35E14E4E1F345B870C3B87269FA45353EFD597241A25304D38375C46B9FD2967";
     private static readonly Dictionary<string, string> Manifest = ReadManifest();
@@ -123,14 +124,14 @@ internal sealed class Engine(string directory) : IDisposable
 
     internal static IEnumerable<string> BuildArguments(Profile profile, string[] domains, bool all)
     {
-        yield return "--wf-tcp-out=443";
-        yield return "--lua-init=@zapret-lib.lua";
-        yield return "--lua-init=@zapret-antidpi.lua";
         if (profile.Function == Combo)
         {
             foreach (string argument in ComboArguments(domains, all)) yield return argument;
             yield break;
         }
+        yield return "--wf-tcp-out=443";
+        yield return "--lua-init=@zapret-lib.lua";
+        yield return "--lua-init=@zapret-antidpi.lua";
         var remaining = domains.ToHashSet(StringComparer.OrdinalIgnoreCase);
         var rules = (profile.Rules ?? []).SelectMany(rule => rule.Domains.Select(domain => (rule, domain)))
             .OrderByDescending(item => item.domain.Length);
@@ -152,17 +153,15 @@ internal sealed class Engine(string directory) : IDisposable
 
     private static IEnumerable<string> ComboArguments(string[] domains, bool all)
     {
-        yield return "--wf-udp-out=443";
-        yield return "--blob=local_tls:@tls_clienthello_www_google_com.bin";
-        yield return "--blob=local_quic:@quic_initial_www_google_com.bin";
-        string[] discordHosts = domains.Where(domain => new[] { "discord.com", "discord.gg", "discordapp.com", "discordapp.net" }
+        string[] discordHosts = domains.Where(domain => new[] { "discord.com", "discord.gg", "discordapp.com", "discordapp.net", "discord.media" }
             .Any(suffix => domain == suffix || domain.EndsWith("." + suffix, StringComparison.Ordinal))).ToArray();
         bool discord = discordHosts.Length > 0;
-        if (discord)
-        {
-            yield return "--wf-raw-part=@windivert_part.discord_media.txt";
-            yield return "--blob=local_discord:@discord-ip-discovery-with-port.bin";
-        }
+        yield return discord ? "--wf-tcp-out=443-65535" : "--wf-tcp-out=443";
+        yield return discord ? "--wf-udp-out=443," + DiscordVoicePorts : "--wf-udp-out=443";
+        yield return "--lua-init=@zapret-lib.lua";
+        yield return "--lua-init=@zapret-antidpi.lua";
+        yield return "--blob=local_tls:@tls_clienthello_www_google_com.bin";
+        yield return "--blob=local_quic:@quic_initial_www_google_com.bin";
 
         yield return "--filter-udp=443";
         yield return "--filter-l7=quic";
@@ -173,10 +172,9 @@ internal sealed class Engine(string directory) : IDisposable
         if (discord)
         {
             yield return "--new";
-            yield return "--filter-udp=19294-19344,50000-50099";
-            yield return "--filter-l7=discord";
-            yield return "--payload=discord_ip_discovery";
-            yield return "--lua-desync=fake:blob=local_discord:repeats=3";
+            yield return "--filter-udp=" + DiscordVoicePorts;
+            yield return "--filter-l7=discord,stun";
+            yield return "--lua-desync=fake:blob=local_quic:ip_autottl=-2,3-20:ip6_autottl=-2,3-20:repeats=2";
         }
 
         string[] video = domains.Where(domain => domain == "youtu.be" || new[] { "youtube.com", "googlevideo.com", "ytimg.com" }
@@ -195,9 +193,9 @@ internal sealed class Engine(string directory) : IDisposable
         if (discord)
         {
             yield return "--new";
-            yield return "--filter-tcp=443";
+            yield return "--filter-tcp=443-65535";
             yield return "--filter-l7=tls";
-            yield return HostFilter(discordHosts);
+            yield return HostFilter(discordHosts.Append("discord.media").Distinct());
             yield return "--payload=tls_client_hello";
             yield return "--lua-desync=hostfakesplit:host=www.google.com:tcp_ts=-1000:tcp_md5:repeats=4";
         }

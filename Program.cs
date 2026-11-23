@@ -112,6 +112,14 @@ internal sealed class Dashboard : Window
                         [new ProfileRule("multidisorder", "midsld", ["www.youtube.com"]),
                          new ProfileRule("fakedsplit", "midsld", ["discord.com"])]);
                     string[] targets = ["www.youtube.com", "discord.com"];
+                    var combo = Engine.BuildArguments(Presets.Single(profile => profile.Function == Engine.Combo), targets, false).ToArray();
+                    var youtubeOnly = Engine.BuildArguments(Presets.Single(profile => profile.Function == Engine.Combo), ["www.youtube.com"], false).ToArray();
+                    if (!combo.Contains("--wf-udp-out=443,19294-19344,50000-65535") ||
+                        !combo.Contains("--filter-udp=19294-19344,50000-65535") ||
+                        !combo.Contains("--filter-l7=discord,stun") ||
+                        !combo.Contains("--hostlist-domains=discord.com,discord.media") ||
+                        youtubeOnly.Contains("--filter-l7=discord,stun"))
+                        throw new InvalidOperationException("Invalid Discord voice profile");
                     var broad = Engine.BuildArguments(mixed, targets, true).ToArray();
                     var narrow = Engine.BuildArguments(mixed, targets, false).ToArray();
                     if (broad.Count(arg => arg == "--new") != 2 || narrow.Count(arg => arg == "--new") != 1 ||

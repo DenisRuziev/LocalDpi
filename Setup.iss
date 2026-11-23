@@ -6,7 +6,7 @@
 AppId={{8911893D-C4EF-4FB4-B86D-BC72983F430E}
 AppName=Local DPI
 #ifndef AppVersion
-  #define AppVersion "1.4.1"
+  #define AppVersion "1.4.2"
 #endif
 AppVersion={#AppVersion}
 SetupIconFile=LocalDpi.ico
