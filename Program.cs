@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.Reflection;
 using System.Globalization;
 using System.IO;
 using System.Net.NetworkInformation;
@@ -43,6 +42,7 @@ internal sealed class Dashboard : Window
         new("Fake split / SNI", "fakedsplit", "midsld"),
         new("Combo / TLS + QUIC + Discord", Engine.Combo, "")
     ];
+    private static readonly Profile DefaultProfile = Presets.Single(profile => profile.Function == Engine.Combo);
     private static readonly string[] Services = ["YouTube", "Discord", "AI"];
     private static readonly string Root = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "LocalDpi");
     private static readonly string Config = Path.Combine(Root, "settings.json");
@@ -101,6 +101,8 @@ internal sealed class Dashboard : Window
         var window = new Dashboard();
         app.MainWindow = window;
         if (args.Contains("--tray")) window.Loaded += (_, _) => window.Hide();
+        if (!args.Contains("--smoke-test"))
+            window.Loaded += async (_, _) => await window.CheckForUpdate();
         if (args is ["--smoke-test", var enginePath])
             window.Loaded += async (_, _) =>
             {
@@ -238,8 +240,7 @@ internal sealed class Dashboard : Window
             Add(navigation, names[index], () => { tab = next; Draw(); }, primary: tab == index);
         }
         Add(navigation, "RU / EN", () => { prefs.English = !prefs.English; Persist(); Draw(); });
-        string? repository = typeof(Dashboard).Assembly.GetCustomAttributes<AssemblyMetadataAttribute>()
-            .FirstOrDefault(attribute => attribute.Key == "UpdateRepository")?.Value;
+        string? repository = ReleaseUpdater.Repository;
         if (!string.IsNullOrWhiteSpace(repository))
             Add(navigation, L("Обновления", "Updates"), () => Process.Start(new ProcessStartInfo(
                 "https://github.com/" + repository + "/releases/latest") { UseShellExecute = true }));
@@ -641,9 +642,10 @@ internal sealed class Dashboard : Window
     {
         selected ??= profiles.SelectedItem as Profile;
         if (selected is null) prefs.Networks.TryGetValue(NetworkKey() + "|" + Scope(), out selected);
-        Profile[] items = Presets.Concat(prefs.Saved).Concat(selected is null ? [] : new[] { selected }).Distinct().ToArray();
+        Profile[] items = new[] { DefaultProfile }.Concat(Presets).Concat(prefs.Saved)
+            .Concat(selected is null ? [] : new[] { selected }).Distinct().ToArray();
         profiles.ItemsSource = items;
-        profiles.SelectedItem = selected ?? items[0];
+        profiles.SelectedItem = selected ?? DefaultProfile;
     }
 
     private void RememberedProfile()
@@ -652,7 +654,44 @@ internal sealed class Dashboard : Window
             PopulateProfiles(profile);
     }
 
-    private Profile Selected() => profiles.SelectedItem as Profile ?? Presets[0];
+    private Profile Selected() => profiles.SelectedItem as Profile ?? DefaultProfile;
+
+    private async Task CheckForUpdate()
+    {
+        PendingUpdate? pending = null;
+        bool launched = false;
+        try
+        {
+            if (ReleaseUpdater.Repository is not { } repository ||
+                ReleaseUpdater.InstalledDirectory() is not { } directory)
+                return;
+            using var http = ReleaseUpdater.CreateClient();
+            var current = typeof(Dashboard).Assembly.GetName().Version!;
+            string staging = Path.Combine(Root, "updates");
+            ReleaseUpdater.CleanStaging(staging);
+            pending = await ReleaseUpdater.DownloadAsync(http, repository, current, staging, CancellationToken.None);
+            if (pending is null || quit || task is not null || engine.Running) return;
+            Log(L("Установка обновления ", "Installing update ") + pending.Version);
+            pending.Launch(directory, Path.Combine(Root, "update-install.log"));
+            launched = true;
+            quit = true;
+            Close();
+        }
+        catch (Exception ex) when (ex is HttpRequestException or IOException or OperationCanceledException or
+            UnauthorizedAccessException or InvalidOperationException or System.ComponentModel.Win32Exception or JsonException)
+        {
+            if (!quit) Log(L("Ошибка обновления: ", "Update failed: ") + ex.Message);
+        }
+        finally
+        {
+            if (!launched && pending is not null)
+            {
+                try { pending.Dispose(); }
+                catch (IOException) { }
+                catch (UnauthorizedAccessException) { }
+            }
+        }
+    }
     private string Scope() => (all ? "all|" : "hosts|") + string.Join(',', Targets().Order());
     private string[] Targets() => prefs.Hosts.Where((_, index) => prefs.Enabled[index] || (all && !prefs.Enabled.Any(value => value)))
         .SelectMany(ParseHosts).Distinct().ToArray();

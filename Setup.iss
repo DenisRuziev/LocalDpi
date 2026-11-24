@@ -6,7 +6,7 @@
 AppId={{8911893D-C4EF-4FB4-B86D-BC72983F430E}
 AppName=Local DPI
 #ifndef AppVersion
-  #define AppVersion "1.4.2"
+  #define AppVersion "1.5.0"
 #endif
 AppVersion={#AppVersion}
 SetupIconFile=LocalDpi.ico
@@ -43,8 +43,19 @@ Name: "{userdesktop}\Local DPI"; Filename: "{app}\LocalDpi.exe"; WorkingDir: "{a
 
 [Run]
 Filename: "{app}\LocalDpi.exe"; Description: "{cm:LaunchProgram,Local DPI}"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\LocalDpi.exe"; Flags: nowait skipifnotsilent runasoriginaluser; Check: IsAutomaticUpdate
 
 [Code]
+function IsAutomaticUpdate(): Boolean;
+var
+  I: Integer;
+begin
+  Result := False;
+  for I := 1 to ParamCount do
+    if CompareText(ParamStr(I), '/LOCALDPIUPDATE') = 0 then
+      Result := True;
+end;
+
 function PrepareToInstall(var NeedsRestart: Boolean): String;
 var
   Code: Integer;
