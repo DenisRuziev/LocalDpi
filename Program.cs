@@ -130,9 +130,9 @@ internal sealed class Dashboard : Window
                     if (!combo.Contains("--wf-udp-out=443,19294-19344,50000-65535") ||
                         !combo.Contains("--filter-udp=19294-19344,50000-65535") ||
                         !combo.Contains("--filter-l7=discord,stun") ||
-                        !combo.Contains("--hostlist-domains=discord.com,discord.media") ||
+                        !combo.Contains("--hostlist-domains=discord.com,discord.media,discordapp.com,discordapp.net") ||
                         youtubeOnly.Contains("--filter-l7=discord,stun"))
-                        throw new InvalidOperationException("Invalid Discord voice profile");
+                        throw new InvalidOperationException("Invalid Discord voice or media profile");
                     var broad = Engine.BuildArguments(mixed, targets, true).ToArray();
                     var narrow = Engine.BuildArguments(mixed, targets, false).ToArray();
                     if (broad.Count(arg => arg == "--new") != 2 || narrow.Count(arg => arg == "--new") != 1 ||

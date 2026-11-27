@@ -195,7 +195,7 @@ internal sealed class Engine(string directory) : IDisposable
             yield return "--new";
             yield return "--filter-tcp=443-65535";
             yield return "--filter-l7=tls";
-            yield return HostFilter(discordHosts.Append("discord.media").Distinct());
+            yield return HostFilter(discordHosts.Concat(["discord.media", "discordapp.com", "discordapp.net"]).Distinct());
             yield return "--payload=tls_client_hello";
             yield return "--lua-desync=hostfakesplit:host=www.google.com:tcp_ts=-1000:tcp_md5:repeats=4";
         }
