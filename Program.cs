@@ -21,14 +21,25 @@ namespace LocalDpi;
 
 internal sealed class Preferences
 {
+    private const string PreviousYouTubeHosts = "www.youtube.com\nyoutu.be\ni.ytimg.com\nredirector.googlevideo.com\ngooglevideo.com";
+    private const string PreviousDiscordHosts = "discord.com\ngateway.discord.gg\ncdn.discordapp.com\nupdates.discord.com";
+    private const string YouTubeHosts = PreviousYouTubeHosts + "\nyoutubei.googleapis.com\nyt3.ggpht.com";
+    private const string DiscordHosts = PreviousDiscordHosts + "\nmedia.discordapp.net\nimages-ext-1.discordapp.net\nimages-ext-2.discordapp.net";
+
     public bool English { get; set; }
     public bool AllSites { get; set; }
     public bool[] Enabled { get; set; } = [true, true, true];
     public string[] Hosts { get; set; } = [
-        "www.youtube.com\nyoutu.be\ni.ytimg.com\nredirector.googlevideo.com\ngooglevideo.com",
-        "discord.com\ngateway.discord.gg\ncdn.discordapp.com\nupdates.discord.com",
+        YouTubeHosts,
+        DiscordHosts,
         "chatgpt.com\nclaude.ai\ngemini.google.com\ngrok.com"
     ];
+    public void MigrateDefaultHosts()
+    {
+        if (Hosts[0].Replace("\r\n", "\n") == PreviousYouTubeHosts) Hosts[0] = YouTubeHosts;
+        if (Hosts[1].Replace("\r\n", "\n") == PreviousDiscordHosts) Hosts[1] = DiscordHosts;
+    }
+
     public List<Profile> Saved { get; set; } = [];
     public Dictionary<string, Profile> Networks { get; set; } = [];
 }
@@ -161,6 +172,7 @@ internal sealed class Dashboard : Window
         Directory.CreateDirectory(Root);
         try { prefs = JsonSerializer.Deserialize<Preferences>(File.ReadAllText(Config)) ?? new(); }
         catch (Exception ex) when (ex is IOException or JsonException) { prefs = new(); }
+        prefs.MigrateDefaultHosts();
         all = prefs.AllSites;
         Title = "Local DPI";
         var iconUri = new Uri("pack://application:,,,/LocalDpi;component/LocalDpi.ico");

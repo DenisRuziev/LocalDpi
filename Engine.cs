@@ -177,7 +177,7 @@ internal sealed class Engine(string directory) : IDisposable
             yield return "--lua-desync=fake:blob=local_quic:ip_autottl=-2,3-20:ip6_autottl=-2,3-20:repeats=2";
         }
 
-        string[] video = domains.Where(domain => domain == "youtu.be" || new[] { "youtube.com", "googlevideo.com", "ytimg.com" }
+        string[] video = domains.Where(domain => domain is "youtu.be" or "youtubei.googleapis.com" or "yt3.ggpht.com" || new[] { "youtube.com", "googlevideo.com", "ytimg.com" }
             .Any(suffix => domain == suffix || domain.EndsWith("." + suffix, StringComparison.Ordinal))).ToArray();
         if (video.Length > 0)
         {
